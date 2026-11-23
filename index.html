@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VK Музыка — Умные фильтры</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root { --vk:#0077ff; --muted:#818c99; --line:#e1e3e6; --soft:#f2f3f5; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:#e5e7eb; color:#000; font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { -webkit-tap-highlight-color:transparent; }
+    .desktop-stage { width:min(100%,1120px); min-height:100vh; margin:0 auto; display:flex; align-items:center; justify-content:center; gap:56px; padding:28px 24px; }
+    .spec-card { width:330px; align-self:center; border:1px solid #fff; background:#ffffffd9; backdrop-filter:blur(16px); border-radius:20px; padding:20px; box-shadow:0 16px 45px #33415514; }
+    .spec-panel { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .28s ease,opacity .22s ease; }
+    .spec-panel.open { grid-template-rows:1fr; opacity:1; }
+    .spec-panel-inner { overflow:hidden; }
+    .toggle { width:42px;height:24px;border-radius:999px;background:#d8dde3;position:relative;transition:background .2s;flex-shrink:0; }
+    .toggle::after { content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:white;box-shadow:0 1px 3px #0002;transition:transform .2s; }
+    .toggle[aria-pressed="true"] { background:var(--vk); }
+    .toggle[aria-pressed="true"]::after { transform:translateX(18px); }
+    .spec-state { background:#f2f3f5;border-radius:10px;padding:9px 10px;font-size:12px; }
+    .spec-state b { display:block;font-size:12px;margin-bottom:3px; }
+    .scrollbar-hide { scrollbar-width:none; -ms-overflow-style:none; }
+    .scrollbar-hide::-webkit-scrollbar { display:none; }
+    .phone { width:390px; height:844px; border:10px solid #17191d; border-radius:44px; background:#fff; overflow:hidden; position:relative; box-shadow:0 28px 80px #11182740, inset 0 0 0 1px #ffffff30; }
+    .screen { height:100%; background:#fff; overflow:hidden; position:relative; border-radius:34px; }
+    .status { height:31px; padding:6px 22px 0; display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:650; position:relative; z-index:5; background:#fff; }
+    .island { position:absolute; width:94px; height:23px; border-radius:20px; background:#050505; left:50%; top:4px; transform:translateX(-50%); }
+    .scroll-area { height:calc(100% - 31px); overflow-y:auto; padding-bottom:154px; scrollbar-width:none; }
+    .scroll-area::-webkit-scrollbar { display:none; }
+    .header { height:68px; padding:8px 20px; display:flex; align-items:center; justify-content:space-between; }
+    .avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(140deg,#d6b18c,#526b72 55%,#172d35); display:grid; place-items:center; color:white; font-weight:700; font-size:13px; border:1px solid #ddd; }
+    .icon-btn { width:38px; height:38px; display:grid; place-items:center; color:#2688d8; border-radius:50%; }
+    .section-title { font-size:23px; font-weight:750; letter-spacing:-.7px; }
+    .count { color:var(--muted); font-weight:450; font-size:19px; margin-left:5px; }
+    .chip { white-space:nowrap; border-radius:999px; padding:10px 14px; border:1px solid #e1e3e6; background:#fff; color:#222; font-size:13px; font-weight:600; transition:background .2s,color .2s,border .2s,transform .2s; }
+    .chip:active { transform:scale(.96); }
+    .chip-viewport { position:relative; }
+    .chip-viewport::after { content:"";position:absolute;pointer-events:none;right:0;top:0;bottom:0;width:35px;background:linear-gradient(90deg,#ffffff00,#fff); }
+    .chip-viewport.at-end::after { opacity:0; }
+    .chip-rail { cursor:grab; overscroll-behavior-x:contain; scroll-behavior:smooth; }
+    .chip-rail.dragging { cursor:grabbing; user-select:none; }
+    .chip.active { background:var(--vk); color:#fff; border-color:var(--vk); box-shadow:0 3px 9px #0077ff30; }
+    .track { display:flex; align-items:center; gap:12px; padding:8px 20px; min-height:69px; cursor:pointer; transition:background .18s,opacity .2s,transform .2s; }
+    .track:active { background:#f5f7fa; }
+    .cover { width:48px; height:48px; flex:0 0 48px; border-radius:11px; position:relative; overflow:hidden; display:grid; place-items:center; color:#fff; font-weight:800; font-size:15px; letter-spacing:-1px; box-shadow:inset 0 0 0 1px #ffffff25; }
+    .cover::before { content:""; position:absolute; width:70px;height:70px;border:1px solid #ffffff55;border-radius:50%; transform:rotate(28deg); }
+    .cover span { position:relative; text-shadow:0 2px 8px #0008; }
+    .track-info { min-width:0; flex:1; }
+    .track-name { font-size:16px; line-height:21px; font-weight:550; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .artist { color:var(--muted); font-size:14px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .explicit { font-size:9px; border:1px solid #9aa3ac; color:#89939d; border-radius:3px; padding:0 3px; margin-left:5px; vertical-align:2px; }
+    .dots { color:#9aa3ac; padding:8px; }
+    .mix-wave { position:relative; isolation:isolate; margin:16px 0 16px; padding:12px 18px 14px; text-align:center; overflow:hidden; min-height:84px; }
+    .mix-wave::before { content:""; position:absolute; z-index:-1; left:-10%; right:-10%; top:30px; height:100px; background:radial-gradient(ellipse at 25% 60%,#ff39d6 0,transparent 48%),radial-gradient(ellipse at 75% 40%,#55c8ff 0,transparent 48%); filter:blur(20px); opacity:.65; }
+    .mix-main { font-size:21px; font-weight:750; letter-spacing:-.5px; }
+    .mix-sub { color:var(--muted); font-size:14px; margin-top:2px; }
+    .save-btn { margin:14px auto 0; border:0; color:var(--vk); background:var(--soft); border-radius:12px; padding:10px 15px; display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:650; opacity:0; transform:translateY(-5px); max-height:0; overflow:hidden; pointer-events:none; transition:opacity .22s,transform .22s,max-height .22s,margin .22s; }
+    .save-btn.visible { opacity:1;transform:translateY(0);max-height:44px;pointer-events:auto; }
+    .banner { margin:16px 16px 18px; height:106px; border-radius:14px; background:radial-gradient(ellipse at 76% 30%,#1265bd 0,#071b36 43%,#050505 75%); color:#fff; padding:13px 13px; position:relative; overflow:hidden; }
+    .banner:after { content:"♫"; position:absolute; right:26px; top:2px; font-size:80px; font-weight:900; color:#ff39d6; text-shadow:5px 3px 0 #0b8cff,-4px 4px 0 #fff; transform:rotate(-12deg); opacity:.9; }
+    .banner strong { display:block; font-size:17px; }
+    .banner small { color:#c5cbd3; font-size:14px; }
+    .banner button { display:block; margin-top:9px; background:#fff; color:#111; border-radius:10px; padding:7px 14px; font-size:14px; font-weight:650; }
+    .more-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; padding:0 16px; }
+    .more-card { min-height:84px; border-radius:17px; background:#fff; border:1px solid #f0f1f3; box-shadow:0 4px 13px #0000000a; padding:18px 12px; display:flex; justify-content:space-between; align-items:center; overflow:hidden; }
+    .more-card .label { font-size:17px; line-height:21px; }
+    .more-card .sub { color:var(--muted); font-size:14px; margin-top:3px; }
+    .mini-art { width:47px;height:59px;border-radius:8px; transform:rotate(8deg); background:linear-gradient(140deg,#f5b9df,#5d76b7); opacity:.9; flex-shrink:0; }
+    .tabbar { position:absolute; bottom:0; left:0; right:0; height:68px; background:#ffffffed; backdrop-filter:blur(18px); border-top:1px solid #f0f1f3; display:flex; justify-content:space-around; align-items:center; z-index:12; }
+    .tab { width:20%; display:flex; flex-direction:column; align-items:center; gap:3px; color:#87919b; font-size:9px; }
+    .tab.active { color:var(--vk); }
+    .player { position:absolute; z-index:11; left:9px; right:9px; bottom:73px; height:58px; border-radius:13px; background:#fff; box-shadow:0 4px 24px #0002; border:1px solid #e9edf1; display:flex; align-items:center; gap:9px; padding:6px 9px; transform:translateY(90px); opacity:0; pointer-events:none; transition:transform .28s ease,opacity .28s ease; }
+    .player.show { transform:translateY(0); opacity:1; pointer-events:auto; }
+    .player .cover { width:42px;height:42px;flex-basis:42px;border-radius:8px; }
+    .player-info { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; line-height:1.2; overflow:hidden; }
+    .player-info b { display:block; width:100%; font-size:12px; white-space:nowrap; overflow:hidden;text-overflow:ellipsis; }
+    .player-info small { display:block; width:100%; color:var(--muted); font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .progress { height:2px; background:#e5e7eb; position:absolute; bottom:0; left:0; right:0; border-radius:3px; overflow:hidden; }
+    .progress span { display:block; width:28%; height:100%; background:var(--vk); }
+    .overlay { position:absolute; inset:0; background:#0006; z-index:30; opacity:0; pointer-events:none; transition:opacity .22s; }
+    .overlay.show { opacity:1; pointer-events:auto; }
+    .sheet { position:absolute; z-index:31; left:0; right:0; bottom:0; max-height:82%; background:#fff; border-radius:24px 24px 0 0; padding:10px 18px 24px; transform:translateY(105%); transition:transform .3s cubic-bezier(.2,.8,.2,1); overflow-y:auto; }
+    .sheet.show { transform:translateY(0); }
+    .handle { width:38px;height:4px;border-radius:9px;background:#d7dce1;margin:0 auto 17px; }
+    .sheet-cover { height:140px; width:140px; flex:0 0 140px; border-radius:16px; margin:8px auto 14px; box-shadow:0 10px 28px #183a7040; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; overflow:hidden; }
+    .sheet-cover::before,.sheet-cover::after { content:"";position:absolute;border:1px solid #ffffff55;border-radius:50%;width:180px;height:180px;transform:rotate(-25deg); }
+    .sheet-cover::after { width:115px;height:115px;transform:rotate(35deg); }
+    .sheet-cover .vibe-wave { position:relative;z-index:1;display:flex;align-items:center;gap:3px;height:34px; }
+    .sheet-cover .vibe-wave i { display:block;width:4px;border-radius:5px;background:#fff;box-shadow:0 0 9px #ffffffaa; }
+    .sheet-cover .vibe-title { position:relative;z-index:1;color:#fff;font-size:13px;font-weight:750;letter-spacing:.2px;text-shadow:0 1px 5px #0004; }
+    .sheet-track { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #f0f1f3; font-size:13px; }
+    .sheet-track .cover { width:35px;height:35px;flex-basis:35px;border-radius:7px;font-size:11px; }
+    .primary { width:100%; background:var(--vk); color:#fff; border-radius:13px; padding:13px; font-size:15px; font-weight:700; margin-top:16px; }
+    .toast { position:absolute; z-index:50; bottom:145px; left:50%; transform:translate(-50%,20px); opacity:0; transition:.25s; background:#24292f; color:white; padding:11px 16px; border-radius:12px; font-size:12px; white-space:nowrap; pointer-events:none; box-shadow:0 6px 20px #0003; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .full-view { position:absolute; inset:31px 0 0; background:#fff; z-index:20; transform:translateX(102%); transition:transform .28s ease; display:flex; flex-direction:column; }
+    .full-view.show { transform:translateX(0); }
+    .full-head { padding:13px 18px 10px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #f1f2f4; }
+    .full-list { overflow-y:auto; padding-bottom:20px; }
+    .fade-in { animation:fade .28s ease both; }
+    @keyframes fade { from { opacity:0; transform:translateY(5px); } to {opacity:1;transform:translateY(0);} }
+    @media (max-width:1023px) { .desktop-stage { padding:0; min-height:100vh; } .spec-card { display:none; } }
+    @media (max-width:430px) {
+      body { background:#fff; }
+      .desktop-stage { display:block; padding:0; min-height:100dvh; }
+      .phone { width:100vw;height:100dvh;border:0;border-radius:0;box-shadow:none; }
+      .screen {border-radius:0;}
+      .island {display:none;}
+    }
+  </style>
+</head>
+<body>
+  <div class="desktop-stage">
+  <main class="phone">
+    <div class="screen">
+      <div class="status">
+        <span>18:43 ◉ ▰</span><div class="island"></div><span>▴ ᯤ 62% ▰</span>
+      </div>
+      <div class="scroll-area" id="homeScroll">
+        <header class="header">
+          <div class="flex items-center gap-3"><div class="avatar">А</div><div class="text-[22px] font-bold tracking-tight">Александр</div></div>
+          <div class="flex items-center gap-3"><button class="icon-btn" aria-label="Поиск"><i data-lucide="search" size="25"></i></button><button class="icon-btn" aria-label="Очередь"><i data-lucide="list-music" size="24"></i></button></div>
+        </header>
+
+        <section class="pt-3">
+          <button id="openAll" class="px-5 flex items-center w-full text-left">
+            <span class="section-title">Мои треки</span><span class="count">742</span><i data-lucide="chevron-right" class="ml-auto text-gray-400" size="22"></i>
+          </button>
+          <div class="chip-viewport" id="chipViewport"><div id="chips" class="chip-rail flex gap-2 overflow-x-auto scrollbar-hide px-5 pt-4 pb-3"></div></div>
+          <div id="tracks" class="min-h-[220px]"></div>
+        </section>
+
+        <section class="mix-wave">
+          <button id="mixButton" class="mix-main"><span>▶</span> Микс по моей музыке</button>
+          <div class="mix-sub">Любимые треки и рекомендации</div>
+          <button id="saveButton" class="save-btn"><i data-lucide="plus" size="15"></i> Сохранить как плейлист</button>
+        </section>
+
+        <section class="banner">
+          <strong>Целый месяц — 0 ₽</strong><small>с подпиской</small>
+          <button>Подключить</button>
+        </section>
+
+        <section class="px-5 pb-3">
+          <h2 class="text-[22px] font-bold mb-3">Ещё</h2>
+          <div class="more-grid !p-0">
+            <div class="more-card"><div><div class="label">Недавно<br>слушали</div></div><div class="mini-art"></div></div>
+            <div class="more-card"><div><div class="label">Плейлисты</div><div class="sub" id="playlistCount">46</div></div><div class="mini-art" style="background:linear-gradient(145deg,#f8a4d5,#19132b)"></div></div>
+            <div class="more-card"><div><div class="label">Подкасты</div><div class="sub">2</div></div><div class="mini-art" style="background:linear-gradient(145deg,#f44336,#2924a1)"></div></div>
+            <div class="more-card"><div><div class="label">Аудиокниги</div></div><i data-lucide="book-open" class="text-gray-400"></i></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="player" id="miniPlayer">
+        <div class="cover" id="playerCover"><span>XO</span></div>
+        <div class="player-info flex flex-col min-w-0"><b id="playerTitle" class="truncate">XO</b><small id="playerArtist" class="truncate">The Limba, Andro</small></div>
+        <button id="playPause" class="text-black p-1"><i data-lucide="pause" size="19"></i></button>
+        <button id="nextTrack" class="text-black p-1"><i data-lucide="skip-forward" size="19"></i></button>
+        <div class="progress"><span></span></div>
+      </div>
+
+      <nav class="tabbar">
+        <div class="tab"><i data-lucide="music-2" size="22"></i><span>Главная</span></div>
+        <div class="tab"><i data-lucide="compass" size="22"></i><span>Обзор</span></div>
+        <div class="tab"><i data-lucide="book-open" size="22"></i><span>Книги и шоу</span></div>
+        <div class="tab"><i data-lucide="baby" size="22"></i><span>Детям</span></div>
+        <div class="tab active"><i data-lucide="headphones" size="22"></i><span>Моя музыка</span></div>
+      </nav>
+
+      <div class="full-view" id="fullView">
+        <div class="full-head">
+          <button id="backHome" class="text-blue-500"><i data-lucide="arrow-left" size="22"></i></button>
+          <div class="font-bold text-[20px]">Мои треки <span class="text-gray-400 font-normal text-[16px]">742</span></div>
+        </div>
+        <div class="chip-viewport"><div id="fullChips" class="chip-rail flex gap-2 overflow-x-auto scrollbar-hide px-4 py-3"></div></div>
+        <div id="fullTracks" class="full-list"></div>
+      </div>
+
+      <div class="overlay" id="overlay"></div>
+      <section class="sheet" id="sheet">
+        <div class="handle"></div>
+        <div class="text-center text-[18px] font-bold mb-1">Новый плейлист</div>
+        <div class="sheet-cover" id="sheetCover"><span class="vibe-wave"><i style="height:12px"></i><i style="height:24px"></i><i style="height:32px"></i><i style="height:19px"></i><i style="height:27px"></i><i style="height:12px"></i></span><span class="vibe-title">Энергичное</span></div>
+        <div class="text-center">
+          <div class="font-bold text-[16px]" id="playlistName">Энергичное из Моего · Май 2026</div>
+          <div class="text-[12px] text-gray-500 mt-1" id="playlistMeta">Подборка из 5 треков</div>
+        </div>
+        <div id="sheetTracks" class="mt-4"></div>
+        <button class="primary" id="createPlaylist">Создать плейлист</button>
+      </section>
+      <div class="toast" id="toast">Плейлист сохранён в разделе «Плейлисты»</div>
+    </div>
+  </main>
+  <aside class="spec-card hidden lg:block">
+    <div class="flex items-start justify-between gap-3">
+      <div><div class="text-[11px] font-bold uppercase tracking-[.12em] text-[#818C99]">Product notes</div><h2 class="text-[19px] font-bold tracking-tight mt-1">Сценарий и логика фичи</h2></div>
+      <span class="rounded-full bg-blue-50 text-[#0077FF] text-[10px] font-bold px-2 py-1">V1.0</span>
+    </div>
+    <p class="text-[12px] text-[#66717d] leading-relaxed mt-2">Умная группировка библиотеки по настроению и контексту прослушивания.</p>
+    <button id="specToggle" class="w-full flex items-center justify-between mt-5 text-left" aria-expanded="false">
+      <span class="text-[13px] font-semibold">Показать UI-спецификацию</span><span class="toggle" role="switch" aria-checked="false" aria-pressed="false"></span>
+    </button>
+    <div id="specPanel" class="spec-panel"><div class="spec-panel-inner">
+      <div class="grid grid-cols-2 gap-2 mt-4">
+        <div class="spec-state"><b>Default</b><span class="text-[#66717d]">«Все» активно, исходная библиотека.</span></div>
+        <div class="spec-state"><b>Filtered</b><span class="text-[#66717d]">Чип выбран, список и микс обновлены.</span></div>
+        <div class="spec-state"><b>Empty</b><span class="text-[#66717d]">Пустое состояние: объяснение и сброс фильтра.</span></div>
+        <div class="spec-state"><b>Saved</b><span class="text-[#66717d]">Toast, счётчик плейлистов +1.</span></div>
+      </div>
+      <div class="mt-4">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-[#818C99] mb-2">Цветовые токены</div>
+        <div class="flex items-center justify-between text-[11px] mb-2"><span class="flex items-center gap-2"><i class="w-3 h-3 rounded-full bg-[#0077FF]"></i>VK Blue</span><code>#0077FF</code></div>
+        <div class="flex items-center justify-between text-[11px] mb-2"><span class="flex items-center gap-2"><i class="w-3 h-3 rounded-full bg-[#F2F3F5] border"></i>Secondary</span><code>#F2F3F5</code></div>
+        <div class="flex items-center justify-between text-[11px]"><span class="flex items-center gap-2"><i class="w-3 h-3 rounded-full bg-[#818C99]"></i>Text muted</span><code>#818C99</code></div>
+      </div>
+      <div class="mt-4 p-3 rounded-xl bg-[#f7f9fc]">
+        <div class="text-[11px] font-bold mb-1">Правила ранжирования</div>
+        <ul class="list-disc pl-4 text-[11px] text-[#66717d] space-y-1 leading-relaxed">
+          <li>Сначала релевантность выбранному вайбу.</li><li>Далее персональная частота и давность прослушивания.</li>
+          <li>Дедупликация версий и скрытие недоступных треков.</li><li>Стабильный порядок при равных оценках.</li>
+        </ul>
+      </div>
+      <p class="text-[10px] text-[#818C99] mt-3">Пороговые значения и веса ранжирования задаются серверной конфигурацией.</p>
+    </div></div>
+  </aside>
+  </div>
+
+<script>
+const filterData = [
+  {id:'all', label:'Все · 742', title:'по моей музыке', name:'Микс по моей музыке', playlist:'Из Моего', color:'linear-gradient(135deg,#1b263b,#415a77)', tracks:[
+    ['XO','The Limba, Andro','XO','linear-gradient(135deg,#111827,#59616c)',true],
+    ['Drama Queen','GAVRILINA','DQ','linear-gradient(135deg,#f3c3b7,#554c55)',false],
+    ['Парадокс','Grazhina','ПР','linear-gradient(135deg,#9b8067,#242b32)',false],
+    ['По барам','ANNA ASTI','AA','linear-gradient(135deg,#5b2c83,#f09bca)',true]]},
+  {id:'energy', label:'⚡ Энергичные · 184', title:'Энергичные', name:'Микс: Энергичные', playlist:'Энергичное из Моего', color:'linear-gradient(135deg,#ff6b35,#d91e63)', tracks:[
+    ['Матушка','Татьяна Куртукова','М','linear-gradient(135deg,#ef7b35,#a51d38)',false],
+    ['Царица','ANNA ASTI','AA','linear-gradient(135deg,#e94d83,#4a1e5d)',true],
+    ['Пожары','HOLLYFLAME','HF','linear-gradient(135deg,#ff9a3c,#d62f25)',false],
+    ['greedy','Tate McRae','TM','linear-gradient(135deg,#dc4c8a,#251e48)',true],
+    ['Всё прошло','Моя Мишель','ММ','linear-gradient(135deg,#fa9d70,#702e68)',false]]},
+  {id:'calm', label:'🌙 Спокойные · 215', title:'Спокойные', name:'Микс: Спокойные', playlist:'Спокойное из Моего', color:'linear-gradient(135deg,#243b55,#7aa1c2)', tracks:[
+    ['Кометы','Моя Мишель','ММ','linear-gradient(135deg,#526d82,#d6c8d1)',false],
+    ['Нежность','МакSим','М','linear-gradient(135deg,#e2b7b1,#795d70)',false],
+    ['Ocean Eyes','Billie Eilish','BE','linear-gradient(135deg,#82b6c9,#1e4050)',true],
+    ['Another Love','Tom Odell','TO','linear-gradient(135deg,#9a8c85,#34343c)',false],
+    ['Луна','Луна','Л','linear-gradient(135deg,#2c355d,#b6a7d7)',false]]},
+  {id:'forgotten', label:'🔥 Забытые хиты · 96', title:'Забытые хиты', name:'Микс: Забытые хиты', playlist:'Забытые хиты из Моего', color:'linear-gradient(135deg,#f6a623,#a83232)', tracks:[
+    ['Невозможное возможно','Дима Билан','ДБ','linear-gradient(135deg,#e8b56a,#503d57)',false],
+    ['Ева','Винтаж','В','linear-gradient(135deg,#c6538c,#442044)',false],
+    ['Stereo Love','Edward Maya','EM','linear-gradient(135deg,#5ca7b9,#273c67)',true],
+    ['Ты не верь слезам','Шура','Ш','linear-gradient(135deg,#f1b55b,#8b3c4a)',false],
+    ['Apologize','OneRepublic','OR','linear-gradient(135deg,#737c8a,#242a35)',false]]},
+  {id:'instrumental', label:'🎧 Без слов · 43', title:'Без слов', name:'Микс: Без слов', playlist:'Музыка без слов из Моего', color:'linear-gradient(135deg,#6b8eaa,#252d47)', tracks:[
+    ['Experience','Ludovico Einaudi','LE','linear-gradient(135deg,#a8b7bd,#394d59)',false],
+    ['Nuvole Bianche','Ludovico Einaudi','LE','linear-gradient(135deg,#b4c4d1,#526b7c)',false],
+    ['Your Hand in Mine','Explosions in the Sky','ES','linear-gradient(135deg,#e6a96c,#3e526c)',false],
+    ['Weightless','Marconi Union','MU','linear-gradient(135deg,#9eb9c4,#3a5061)',false],
+    ['A Walk','Tycho','T','linear-gradient(135deg,#d0a77f,#566f8c)',false]]},
+  {id:'road', label:'🚗 В дорогу · 128', title:'В дорогу', name:'Микс: В дорогу', playlist:'В дорогу из Моего', color:'linear-gradient(135deg,#167d8d,#263b70)', tracks:[
+    ['Поезда','Моя Мишель','ММ','linear-gradient(135deg,#2b9b9a,#233c60)',false],
+    ['The Nights','Avicii','A','linear-gradient(135deg,#e7a13e,#246b83)',false],
+    ['Тёмные аллеи','МУККА','М','linear-gradient(135deg,#333e69,#bb6772)',true],
+    ['Adventure of a Lifetime','Coldplay','C','linear-gradient(135deg,#4eb7a8,#e3a64a)',false],
+    ['Blinding Lights','The Weeknd','W','linear-gradient(135deg,#d9274d,#182b60)',true]]}
+];
+let selected = 'all', currentTracks = filterData[0].tracks, currentIndex = 0, isPlaying = true, playlistCount = 46, saved = false;
+const $ = id => document.getElementById(id);
+function currentFilter(){ return filterData.find(f=>f.id===selected); }
+function renderChips(targetId){
+  const rail=$(targetId);
+  rail.innerHTML = filterData.map(f=>`<button class="chip ${selected===f.id?'active':''}" data-filter="${f.id}">${f.label}</button>`).join('');
+  rail.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>selectFilter(b.dataset.filter)));
+  rail.scrollLeft=0;
+  updateChipEdge(rail);
+  if(!rail.dataset.wheelBound){
+    rail.addEventListener('wheel',e=>{
+      if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); rail.scrollLeft+=e.deltaY; }
+    },{passive:false});
+    rail.addEventListener('scroll',()=>updateChipEdge(rail),{passive:true});
+    let down=false,startX=0,startScroll=0;
+    rail.addEventListener('pointerdown',e=>{ if(e.pointerType!=='mouse')return;down=true;startX=e.clientX;startScroll=rail.scrollLeft;rail.classList.add('dragging'); });
+    window.addEventListener('pointerup',()=>{down=false;rail.classList.remove('dragging');});
+    rail.addEventListener('pointermove',e=>{if(down)rail.scrollLeft=startScroll-(e.clientX-startX);});
+    rail.dataset.wheelBound='1';
+  }
+}
+function updateChipEdge(rail){
+  const viewport=rail.parentElement;
+  viewport.classList.toggle('at-end',rail.scrollLeft+rail.clientWidth>=rail.scrollWidth-3);
+}
+function coverMarkup(t){ return `<div class="cover" style="background:${t[3]}"><span>${t[2]}</span></div>`; }
+function renderTracks(targetId, full=false){
+  const list = currentTracks;
+  $(targetId).innerHTML = list.map((t,i)=>`<div class="track fade-in" data-track="${i}">
+    ${coverMarkup(t)}
+    <div class="track-info"><div class="track-name">${t[0]}${t[4]?'<span class="explicit">E</span>':''}</div><div class="artist">${t[1]}</div></div>
+    <button class="dots" aria-label="Ещё"><i data-lucide="more-vertical" size="19"></i></button>
+  </div>`).join('');
+  $(targetId).querySelectorAll('.track').forEach(el=>el.addEventListener('click',e=>{
+    if(e.target.closest('.dots')) return;
+    playTrack(Number(el.dataset.track));
+  }));
+  lucide.createIcons();
+}
+function selectFilter(id){
+  selected=id; currentTracks=filterData.find(f=>f.id===id).tracks; saved=false;
+  renderChips('chips'); renderTracks('tracks'); renderChips('fullChips'); renderTracks('fullTracks',true);
+  $('mixButton').innerHTML=`▶ ${id==='all'?'Микс по моей музыке':filterData.find(f=>f.id===id).name}`;
+  $('saveButton').classList.toggle('visible',id!=='all');
+  $('saveButton').innerHTML='<i data-lucide="plus" size="15"></i> Сохранить как плейлист';
+  lucide.createIcons();
+}
+function playTrack(i){
+  currentIndex=i; const t=currentTracks[i]||currentTracks[0];
+  $('playerTitle').textContent=t[0]; $('playerArtist').textContent=t[1];
+  $('playerCover').style.background=t[3]; $('playerCover').innerHTML=`<span>${t[2]}</span>`;
+  $('miniPlayer').classList.add('show'); isPlaying=true; $('playPause').innerHTML='<i data-lucide="pause" size="19"></i>'; lucide.createIcons();
+}
+$('mixButton').addEventListener('click',()=>{playTrack(0);});
+$('playPause').addEventListener('click',()=>{isPlaying=!isPlaying;$('playPause').innerHTML=`<i data-lucide="${isPlaying?'pause':'play'}" size="19"></i>`;lucide.createIcons();});
+$('nextTrack').addEventListener('click',()=>playTrack((currentIndex+1)%currentTracks.length));
+$('openAll').addEventListener('click',()=>{$('fullView').classList.add('show');});
+$('backHome').addEventListener('click',()=>{$('fullView').classList.remove('show');});
+function openSheet(){
+  const f=currentFilter(), label=f.id==='all'?'Моё':f.title;
+  $('playlistName').textContent=`${f.playlist} · Ноябрь 2026`;
+  $('playlistMeta').textContent=`Подборка из ${currentTracks.length} треков`;
+  $('sheetCover').style.background=`linear-gradient(135deg,#0077FF 0%,#35b7e8 42%,#f04acb 100%)`;
+  const vibeTitle = f.id==='all'?'Моё':f.title==='Энергичные'?'Энергичное':f.title==='Спокойные'?'Спокойное':f.title==='Забытые хиты'?'Забытые хиты':f.title;
+  $('sheetCover').innerHTML=`<span class="vibe-wave"><i style="height:12px"></i><i style="height:24px"></i><i style="height:32px"></i><i style="height:19px"></i><i style="height:27px"></i><i style="height:12px"></i></span><span class="vibe-title">${vibeTitle}</span>`;
+  $('sheetTracks').innerHTML=currentTracks.slice(0,4).map(t=>`<div class="sheet-track">${coverMarkup(t)}<div class="min-w-0 flex-1"><div class="font-semibold truncate">${t[0]}</div><div class="text-gray-500 text-[11px]">${t[1]}</div></div></div>`).join('');
+  $('overlay').classList.add('show'); $('sheet').classList.add('show');
+}
+function closeSheet(){$('overlay').classList.remove('show');$('sheet').classList.remove('show');}
+$('saveButton').addEventListener('click',openSheet);
+$('overlay').addEventListener('click',closeSheet);
+$('createPlaylist').addEventListener('click',()=>{
+  if(!saved){playlistCount++;saved=true;$('playlistCount').textContent=playlistCount;}
+  closeSheet();$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2600);
+  $('saveButton').innerHTML='<i data-lucide="check" size="15"></i> Плейлист сохранён';lucide.createIcons();
+});
+renderChips('chips');renderTracks('tracks');renderChips('fullChips');renderTracks('fullTracks');lucide.createIcons();
+const specToggle=$('specToggle'), specPanel=$('specPanel'), switchEl=specToggle.querySelector('.toggle');
+specToggle.addEventListener('click',()=>{
+  const open=!specPanel.classList.contains('open');
+  specPanel.classList.toggle('open',open);
+  specToggle.setAttribute('aria-expanded',String(open));
+  switchEl.setAttribute('aria-pressed',String(open));
+  switchEl.setAttribute('aria-checked',String(open));
+});
+</script>
+</body>
+</html>
